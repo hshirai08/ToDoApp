@@ -20,6 +20,7 @@ class TaskTest extends TestCase
         parent::setUp();
 
         // テストケース実行前にフォルダデータを作成する
+        $this->seed('UsersTableSeeder');
         $this->seed('FoldersTableSeeder');
     }
 

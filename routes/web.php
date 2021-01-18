@@ -17,23 +17,29 @@ use Illuminate\Support\Facades\Auth;
 |
 */
 
-// ホーム画面を表示する
-Route::get('/', [HomeController::class, 'index'])->name('home');
+// ユーザーの認証状態を確認して、ログインしていなければログイン画面を表示する
+Route::group(['middleware' => 'auth'], function () {
 
-// 選ばれたフォルダのタスク一覧を表示する
-Route::get('/folders/{id}/tasks', [TaskController::class, 'index'])->name('tasks.index');
+    // ホーム画面を表示する
+    Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// フォルダを作成する
-Route::get('/folders/create', [FolderController::class, 'showCreateForm'])->name('folders.create');
-Route::post('/folders/create', [FolderController::class, 'create']);
+    // フォルダを作成する
+    Route::get('/folders/create', [FolderController::class, 'showCreateForm'])->name('folders.create');
+    Route::post('/folders/create', [FolderController::class, 'create']);
 
-// タスクを作成する
-Route::get('/folders/{id}/tasks/create', [TaskController::class, 'showCreateForm'])->name('tasks.create');
-Route::post('/folders/{id}/tasks/create', [TaskController::class, 'create']);
+    Route::group(['middleware' => 'can:view,folder'], function () {
+        // 選ばれたフォルダのタスク一覧を表示する
+        Route::get('/folders/{folder}/tasks', [TaskController::class, 'index'])->name('tasks.index');
 
-// タスクを編集する
-Route::get('/folders/{id}/tasks/{task_id}/edit', [TaskController::class, 'showEditForm'])->name('tasks.edit');
-Route::post('folders/{id}/tasks/{task_id}/edit', [TaskController::class, 'edit']);
+        // タスクを作成する
+        Route::get('/folders/{folder}/tasks/create', [TaskController::class, 'showCreateForm'])->name('tasks.create');
+        Route::post('/folders/{folder}/tasks/create', [TaskController::class, 'create']);
+
+        // タスクを編集する
+        Route::get('/folders/{folder}/tasks/{task}/edit', [TaskController::class, 'showEditForm'])->name('tasks.edit');
+        Route::post('folders/{folder}/tasks/{task}/edit', [TaskController::class, 'edit']);
+    });
+});
 
 // 会員登録・ログイン・ログアウト・パスワード再設定を行う
 Auth::routes();

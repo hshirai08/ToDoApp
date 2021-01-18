@@ -7,71 +7,68 @@ use App\Models\Task;
 use App\Http\Requests\CreateTask;
 use App\Http\Requests\EditTask;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
     /**
-     * GET /folders/{id}/tasks
+     * GET /folders/{folder}/tasks
      * タスク一覧画面を表示する
      */
-    public function index(int $id)
+    public function index(Folder $folder)
     {
-        // 全てのフォルダを取得する
-        $folders = Folder::all();
-        // 選ばれたフォルダを取得する
-        $current_folder = Folder::find($id);
+        // ログインユーザーのフォルダを取得する
+        $folders = Auth::user()->folders()->get();
         // 選ばれたフォルダに紐づくタスクを取得する
-        $tasks = $current_folder->tasks()->get();
+        $tasks = $folder->tasks()->get();
 
         // テンプレートに全てのフォルダの情報、選ばれたフォルダのID、選ばれたフォルダに紐づくタスクの情報を渡してHTMLを生成する
         return view('tasks/index', [
             'folders' => $folders,
-            'current_folder_id' => $id,
+            'current_folder_id' => $folder->id,
             'tasks' => $tasks,
         ]);
     }
 
     /**
-     * GET /folders/{id}/tasks/create
+     * GET /folders/{folder}/tasks/create
      * タスク作成画面を表示する
      */
-    public function showCreateForm(int $id)
+    public function showCreateForm(Folder $folder)
     {
         return view('tasks/create', [
-            'folder_id' => $id
+            'folder' => $folder->id,
         ]);
     }
 
     /**
-     * POST /folders/{id}/tasks/create
+     * POST /folders/{folder}/tasks/create
      * タスクを保存する
      */
-    public function create(int $id, CreateTask $request)
+    public function create(Folder $folder, CreateTask $request)
     {
-        // 選ばれたフォルダを取得する
-        $current_folder = Folder::find($id);
         // 追加するタスクのインスタンスを作成する
         $task = new Task();
         // タスクのタイトルと期限日に入力値を設定する
         $task->title = $request->title;
         $task->due_date = $request->due_date;
         // 追加されたタスクを保存する
-        $current_folder->tasks()->save($task);
+        $folder->tasks()->save($task);
 
         // 選ばれたフォルダのタスク一覧画面を表示する
         return redirect()->route('tasks.index', [
-            'id' => $current_folder->id,
+            'folder' => $folder->id,
         ]);
     }
 
     /**
-     * GET /folders/{id}/tasks/{task_id}/edit
+     * GET /folders/{folder}/tasks/{task}/edit
      * タスク編集画面を表示する
      */
-    public function showEditForm(int $id, int $task_id)
+    public function showEditForm(Folder $folder, Task $task)
     {
-        // 選ばれたタスクを取得
-        $task = Task::find($task_id);
+        // フォルダとタスクが紐づいていない場合は 404 を返す
+        $this->checkRelation($folder, $task);
 
         return view('tasks/edit', [
             'task' => $task,
@@ -79,13 +76,14 @@ class TaskController extends Controller
     }
 
     /**
-     * POST /folders/{id}/tasks/{task_id}/edit
+     * POST /folders/{folder}/tasks/{task}/edit
      * 編集したタスクを保存する
      */
-    public function edit(int $id, int $task_id, EditTask $request)
+    public function edit(Folder $folder, Task $task, EditTask $request)
     {
-        // 編集されたタスクを取得する
-        $task = Task::find($task_id);
+        // フォルダとタスクが紐づいていない場合は 404 を返す
+        $this->checkRelation($folder, $task);
+
         // タスクのタイトル、状態、期限日に入力値を設定する
         $task->title = $request->title;
         $task->status = $request->status;
@@ -95,7 +93,17 @@ class TaskController extends Controller
 
         // タスク一覧画面を表示する
         return redirect()->route('tasks.index', [
-            'id' => $task->folder_id,
+            'folder' => $task->folder_id,
         ]);
+    }
+
+    /**
+     * フォルダとタスクが紐づいていない場合は 404 を返す
+     */
+    private function checkRelation(Folder $folder, Task $task)
+    {
+        if ($folder->id !== $task->folder_id) {
+            abort(404);
+        }
     }
 }
